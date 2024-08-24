@@ -18,18 +18,16 @@ public class LinkedList {
     public int size() {return size;}
     public boolean isEmpty() {return size == 0;}
     public Node getHead() {return head;}
-    public Node getTail() {return tail;}
 
     public void add(Order order) {
         Node node = new Node(order);
         if (isEmpty()) {
             head = node;
-            tail = node;
         } else {
             tail.setNext(node);
             node.setPrev(tail);
-            tail = node;
         }
+        tail = node;
         size++;
     }
 
@@ -49,21 +47,4 @@ public class LinkedList {
         }
         size--;
     }
-
-    public Order head() {
-        if (isEmpty()) return null;
-        return head.getVal();
-    }
-
-    public Order tail() {
-        if (isEmpty()) return null;
-        return tail.getVal();
-    }
-
-    public void clear() {
-        head = null;
-        tail = null;
-        size = 0;
-    }
-
 }

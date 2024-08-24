@@ -24,12 +24,10 @@ public abstract class Order {
 
     // Getters and setters
     public int getId() {return id;}
-    public float getTimeStamp() {return timestamp;}
 
     public boolean isBid() {return type.isBid();}
     public boolean isAsk() {return type.isAsk();}
     public boolean isMarket() {return strategyType.isMarket();}
-    public boolean isLimit() {return strategyType.isLimit();}
 
     public int getQuantity() {return quantity;}
     public void setQuantity(int quantity) {

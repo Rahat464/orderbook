@@ -25,10 +25,9 @@ public class Main {
                 :.......:::..:::::..::........:::........::..:::::..::........::::.......::::.......:::..::::..::\s
                 """);
 
-        int input = 0;
         while (true){ // NOSONAR
             out("1. Automated \n2. Manual \n3. Quit");
-            input = SCANNER.nextInt();
+            int input = SCANNER.nextInt();
 
             switch (input) {
                 case 1 -> auto();

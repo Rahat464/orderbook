@@ -32,7 +32,6 @@ public class OrderFactory {
         else return new Bid(orderId, price, quantity, strategyType);
     }
 
-    public static int getOrderId() {return orderId;}
     public static void increment() {orderId++;}
 
     // Generate random price using Gaussian distribution

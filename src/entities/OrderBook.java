@@ -1,7 +1,6 @@
 package entities;
 
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.Executors;
@@ -17,10 +16,8 @@ public class OrderBook {
     private final LinkedList orders;
     private final TreeMap<Float, LinkedList> ask;
     private final TreeMap<Float, LinkedList> bid;
-
-    private ScheduledExecutorService scheduler;
     private static final Logger LOGGER = Logger.getLogger(OrderBook.class.getName());
-    Iterator<Order> iterator;
+    ScheduledExecutorService scheduler;
 
     // Default constructor
     public OrderBook() {
