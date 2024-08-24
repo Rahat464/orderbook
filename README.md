@@ -57,4 +57,4 @@ This has been developed using Java 22.0.1, and although not tested, should work 
 
 Feel free to explore the code and modify it to suit your needs. Contributions are welcome!
 
-Code in this repository is licensed under MIT License. See `license.txt` for more information.
+Code in this repository is licensed under MIT License. See `LICENSE` for more information.
