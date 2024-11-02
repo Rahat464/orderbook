@@ -1,6 +1,8 @@
-package entities;
+package dev.rahatali.orderbook.entities;
 
-import enums.*;
+import dev.rahatali.orderbook.enums.Status;
+import dev.rahatali.orderbook.enums.Strategy;
+import dev.rahatali.orderbook.enums.Type;
 
 public abstract class Order {
     // Public as these are read-only

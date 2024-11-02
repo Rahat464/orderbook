@@ -1,6 +1,6 @@
-package structures;
+package dev.rahatali.orderbook.structures;
 
-import entities.Order;
+import dev.rahatali.orderbook.entities.Order;
 
 /* Custom linked list implementation
 * */

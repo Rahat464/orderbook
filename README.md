@@ -15,40 +15,40 @@ This has been developed using Java 22.0.1, and although not tested, should work 
     ```
 
 2. **Build the Project**:
-    Ensure you have Java installed. Then, run:
+   Ensure you have Java installed. Then, run:
     ```sh
-    javac -d out src/**/*.java
+    javac -d out src/main/java/dev/rahatali/orderbook/**/*.java
     ```
 
 3. **Run the Program**:
     ```sh
-    java -cp out main.Main
+    java -cp out dev.rahatali.orderbook.Main
     ```
 
 ## Project Structure
-- **`src/main/Main.java`**: The entry point of the application. It provides options for manual and automated order creation and matching.
-- **`src/entities/OrderBook.java`**: Manages the order book, including adding orders and matching them.
-- **`src/entities/Order.java`**: Abstract class representing an order. Contains common properties and methods for orders.
-- **`src/entities/Bid.java`**: Extends `Order` to represent a bid order.
-- **`src/entities/Ask.java`**: Extends `Order` to represent an ask order.
-- **`src/entities/OrderFactory.java`**: Factory class for creating orders, either randomly or based on user input.
-- **`src/structures/LinkedList.java`**: Custom linked list implementation used to store orders.
-- **`src/structures/Node.java`**: Represents a node in the custom linked list.
-- **`src/enums/Type.java`**: Enum representing the type of order (BID or ASK).
-- **`src/enums/Strategy.java`**: Enum representing the strategy of the order (LIMIT or MARKET).
-- **`src/enums/Status.java`**: Enum representing the status of the order (ACTIVE, COMPLETED, CANCELLED).
+- **`src/main/java/dev/rahatali/orderbook/Main.java`**: The entry point of the application. It provides options for manual and automated order creation and matching.
+- **`src/main/java/dev/rahatali/orderbook/entities/OrderBook.java`**: Manages the order book, including adding orders and matching them.
+- **`src/main/java/dev/rahatali/orderbook/entities/Order.java`**: Abstract class representing an order. Contains common properties and methods for orders.
+- **`src/main/java/dev/rahatali/orderbook/entities/Bid.java`**: Extends `Order` to represent a bid order.
+- **`src/main/java/dev/rahatali/orderbook/entities/Ask.java`**: Extends `Order` to represent an ask order.
+- **`src/main/java/dev/rahatali/orderbook/entities/OrderFactory.java`**: Factory class for creating orders, either randomly or based on user input.
+- **`src/main/java/dev/rahatali/orderbook/structures/LinkedList.java`**: Custom linked list implementation used to store orders.
+- **`src/main/java/dev/rahatali/orderbook/structures/Node.java`**: Represents a node in the custom linked list.
+- **`src/main/java/dev/rahatali/orderbook/enums/Type.java`**: Enum representing the type of order (BID or ASK).
+- **`src/main/java/dev/rahatali/orderbook/enums/Strategy.java`**: Enum representing the strategy of the order (LIMIT or MARKET).
+- **`src/main/java/dev/rahatali/orderbook/enums/Status.java`**: Enum representing the status of the order (ACTIVE, COMPLETED, CANCELLED).
 
 ## Usage Instructions
 1. **Manual Mode**:
-    - Run the program and select the manual mode.
-    - Choose to prefill the order book or create your own orders.
-    - Follow the prompts to enter order details.
-    - The system will attempt to match orders and display the results.
+   - Run the program and select the manual mode.
+   - Choose to prefill the order book or create your own orders.
+   - Follow the prompts to enter order details.
+   - The system will attempt to match orders and display the results.
 
 2. **Automated Mode**:
-    - Run the program and select the automated mode.
-    - Enter the number of orders to be created.
-    - The system will create random orders and match them automatically.
+   - Run the program and select the automated mode.
+   - Enter the number of orders to be created.
+   - The system will create random orders and match them automatically.
 
 ## Additional Information
 - **Logging**: The system logs order matching activities and garbage collection events.

@@ -1,7 +1,7 @@
-package entities;
+package dev.rahatali.orderbook.entities;
 
-import enums.Type;
-import enums.Strategy;
+import dev.rahatali.orderbook.enums.Strategy;
+import dev.rahatali.orderbook.enums.Type;
 
 public class Bid extends Order {
     // Market

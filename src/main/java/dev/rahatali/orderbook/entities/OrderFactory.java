@@ -1,7 +1,7 @@
-package entities;
+package dev.rahatali.orderbook.entities;
 
-import enums.Strategy;
-import enums.Type;
+import dev.rahatali.orderbook.enums.Strategy;
+import dev.rahatali.orderbook.enums.Type;
 
 import java.util.Random;
 

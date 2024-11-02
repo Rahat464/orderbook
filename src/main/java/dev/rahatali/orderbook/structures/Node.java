@@ -2,9 +2,9 @@
  * A custom linked list node that allows for
  * It contains the node's name and the node's weight.
  */
-package structures;
+package dev.rahatali.orderbook.structures;
 
-import entities.Order;
+import dev.rahatali.orderbook.entities.Order;
 
 // Used in conjunction with LinkedList class to create a doubly linked list
 public class Node {

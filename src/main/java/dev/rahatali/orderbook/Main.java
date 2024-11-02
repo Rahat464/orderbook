@@ -1,10 +1,10 @@
-package main;
+package dev.rahatali.orderbook;
 
-import entities.Order;
-import entities.OrderBook;
-import entities.OrderFactory;
-import enums.Strategy;
-import enums.Type;
+import dev.rahatali.orderbook.entities.Order;
+import dev.rahatali.orderbook.entities.OrderBook;
+import dev.rahatali.orderbook.entities.OrderFactory;
+import dev.rahatali.orderbook.enums.Strategy;
+import dev.rahatali.orderbook.enums.Type;
 
 import java.util.Scanner;
 

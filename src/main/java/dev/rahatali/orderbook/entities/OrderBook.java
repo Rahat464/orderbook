@@ -1,4 +1,8 @@
-package entities;
+package dev.rahatali.orderbook.entities;
+
+import dev.rahatali.orderbook.enums.Type;
+import dev.rahatali.orderbook.structures.LinkedList;
+import dev.rahatali.orderbook.structures.Node;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -8,9 +12,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import enums.Type;
-import structures.*;
 
 public class OrderBook {
     private final LinkedList orders;
