@@ -26,13 +26,14 @@ public class Main {
                 """);
 
         while (true){ // NOSONAR
-            out("1. Automated \n2. Manual \n3. Quit");
+            out("1. Automated \n2. Manual \n3. Benchmark \n4. Quit");
             int input = SCANNER.nextInt();
 
             switch (input) {
                 case 1 -> auto();
                 case 2 -> manual();
-                case 3-> {
+                case 3 -> benchmark();
+                case 4 -> {
                     out("Goodbye!");
                     System.exit(0);
                 }
@@ -93,6 +94,36 @@ public class Main {
         while (!orderBook.isEmpty(null)) {
             orderBook.match();
         }
+    }
+
+    private static void benchmark(){
+        long startTime;
+        long endTime;
+        long timeTakenNs;
+        double timeTakenMs;
+
+        // Time taken to create 100k orders
+        startTime = System.nanoTime();
+        for (int i = 0; i < 100_000; i++) {
+            orderBook.add(OrderFactory.createOrder());
+        }
+        endTime = System.nanoTime();
+
+        timeTakenNs = endTime - startTime;
+        timeTakenMs = timeTakenNs / 1_000_000.0;
+        final String creationResult = "Time taken to create 1 million orders: " + timeTakenNs + "ns (" + timeTakenMs + "ms)";
+
+        // Time taken to match 1,000 orders
+        startTime = System.nanoTime();
+        for (int i = 0; i < 1_000; i++) {
+            orderBook.match();
+        }
+        endTime = System.nanoTime();
+
+        timeTakenNs = endTime - startTime;
+        timeTakenMs = timeTakenNs / 1_000_000.0;
+        out(creationResult);
+        out("Time taken to match 1,000 orders: " + timeTakenNs + "ns (" + timeTakenMs + "ms)");
     }
 
     private static void out(String message){
