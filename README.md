@@ -2,7 +2,7 @@
 
 ## Project Overview
 This project is an order matching system that simulates a basic stock exchange. It supports both manual and automated order creation and matching.
-The system uses a custom linked list implementation to manage orders and a `TreeMap` to store and match bids and asks efficiently.
+The system uses a `LinkedList` to manage orders and a `TreeMap` to store and match bids and asks efficiently.
 It supports both limit and market orders, and provides basic logging and performance measurement features.
 
 This has been developed using Java 22.0.1, and although not tested, should work with any recent version of Java.
@@ -15,28 +15,15 @@ This has been developed using Java 22.0.1, and although not tested, should work 
     ```
 
 2. **Build the Project**:
-   Ensure you have Java installed. Then, run:
+   Ensure you have Java and Maven installed. Then, run:
     ```sh
-    javac -d out src/main/java/dev/rahatali/orderbook/**/*.java
+    mvn clean install
     ```
 
 3. **Run the Program**:
     ```sh
-    java -cp out dev.rahatali.orderbook.Main
+    mvn exec:java
     ```
-
-## Project Structure
-- **`src/main/java/dev/rahatali/orderbook/Main.java`**: The entry point of the application. It provides options for manual and automated order creation and matching.
-- **`src/main/java/dev/rahatali/orderbook/entities/OrderBook.java`**: Manages the order book, including adding orders and matching them.
-- **`src/main/java/dev/rahatali/orderbook/entities/Order.java`**: Abstract class representing an order. Contains common properties and methods for orders.
-- **`src/main/java/dev/rahatali/orderbook/entities/Bid.java`**: Extends `Order` to represent a bid order.
-- **`src/main/java/dev/rahatali/orderbook/entities/Ask.java`**: Extends `Order` to represent an ask order.
-- **`src/main/java/dev/rahatali/orderbook/entities/OrderFactory.java`**: Factory class for creating orders, either randomly or based on user input.
-- **`src/main/java/dev/rahatali/orderbook/structures/LinkedList.java`**: Custom linked list implementation used to store orders.
-- **`src/main/java/dev/rahatali/orderbook/structures/Node.java`**: Represents a node in the custom linked list.
-- **`src/main/java/dev/rahatali/orderbook/enums/Type.java`**: Enum representing the type of order (BID or ASK).
-- **`src/main/java/dev/rahatali/orderbook/enums/Strategy.java`**: Enum representing the strategy of the order (LIMIT or MARKET).
-- **`src/main/java/dev/rahatali/orderbook/enums/Status.java`**: Enum representing the status of the order (ACTIVE, COMPLETED, CANCELLED).
 
 ## Usage Instructions
 1. **Manual Mode**:
