@@ -25,7 +25,7 @@ public class Main {
                 :.......:::..:::::..::........:::........::..:::::..::........::::.......::::.......:::..::::..::\s
                 """);
 
-        while (true){ // NOSONAR
+        while (true){ // NOSONAR - Infinite loop required for user input
             out("1. Automated \n2. Manual \n3. Benchmark \n4. Quit");
             int input = SCANNER.nextInt();
 
@@ -99,8 +99,7 @@ public class Main {
     private static void benchmark(){
         long startTime;
         long endTime;
-        long timeTakenNs;
-        double timeTakenMs;
+        int ordersMatched = 0;
 
         // Time taken to create 100k orders
         startTime = System.nanoTime();
@@ -108,22 +107,21 @@ public class Main {
             orderBook.add(OrderFactory.createOrder());
         }
         endTime = System.nanoTime();
-
-        timeTakenNs = endTime - startTime;
-        timeTakenMs = timeTakenNs / 1_000_000.0;
-        final String creationResult = "Time taken to create 1 million orders: " + timeTakenNs + "ns (" + timeTakenMs + "ms)";
+        outputBenchmarkResult(startTime, endTime, "create 1M");
 
         // Time taken to match 1,000 orders
         startTime = System.nanoTime();
-        for (int i = 0; i < 1_000; i++) {
-            orderBook.match();
+        while (ordersMatched < 1_000) {
+             if (orderBook.match()) ordersMatched++;
         }
         endTime = System.nanoTime();
+        outputBenchmarkResult(startTime, endTime, "match 1,000");
+    }
 
-        timeTakenNs = endTime - startTime;
-        timeTakenMs = timeTakenNs / 1_000_000.0;
-        out(creationResult);
-        out("Time taken to match 1,000 orders: " + timeTakenNs + "ns (" + timeTakenMs + "ms)");
+    private static void outputBenchmarkResult(long startTime, long endTime, String message){
+        long timeTakenNs = endTime - startTime;
+        double timeTakenMs = timeTakenNs / 1_000_000.0;
+        out("Time taken to " + message + "  orders: " + timeTakenNs + "ns (" + timeTakenMs + "ms)");
     }
 
     private static void out(String message){
