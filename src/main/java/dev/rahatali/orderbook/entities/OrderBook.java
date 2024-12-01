@@ -120,7 +120,6 @@ public class OrderBook {
                 findMatchingLimitOrder(map, order);
 
         if (matchingOrder == null) {
-            LOGGER.log(Level.INFO, "Current map state: {0}", map);
             LOGGER.info("No matching order found.");}
         return matchingOrder;
     }

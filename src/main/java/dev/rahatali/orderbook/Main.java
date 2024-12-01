@@ -12,8 +12,16 @@ public class Main {
     private static final OrderBook orderBook = new OrderBook();
     private static final Scanner SCANNER = new Scanner(System.in);
 
-
     public static void main(String[] args) {
+        try {
+            menu();
+        } finally {
+            SCANNER.close();
+        }
+    }
+
+
+    public static void menu() {
         out(""" 
                 :'#######::'########::'########::'########:'########::'########:::'#######:::'#######::'##:::'##:
                 '##.... ##: ##.... ##: ##.... ##: ##.....:: ##.... ##: ##.... ##:'##.... ##:'##.... ##: ##::'##::
@@ -101,23 +109,22 @@ public class Main {
         long startTime;
         long endTime;
         int ordersMatched = 0;
-        String result = "";
 
-        // Time taken to create 100k orders
+        // Time taken to create 1M orders
         startTime = System.nanoTime();
-        for (int i = 0; i < 100_000; i++) {
+        for (int i = 0; i < 1_000_000; i++) {
             orderBook.add(OrderFactory.createOrder());
         }
         endTime = System.nanoTime();
-        result += generateBenchmarkMessage(startTime, endTime, "create 1M");
+        String result = generateBenchmarkMessage(startTime, endTime, "create 1M");
 
-        // Time taken to match 1,000 orders
+        // Time taken to match 100,000 orders
         startTime = System.nanoTime();
-        while (ordersMatched < 1_000) {
+        while (ordersMatched < 100_000) {
              if (orderBook.match()) ordersMatched++;
         }
         endTime = System.nanoTime();
-        result += generateBenchmarkMessage(startTime, endTime, "match 1,000");
+        result += generateBenchmarkMessage(startTime, endTime, "match 100K");
         
         out(result);
     }
@@ -125,7 +132,7 @@ public class Main {
     private static String generateBenchmarkMessage(long startTime, long endTime, String message){
         long timeTakenNs = endTime - startTime;
         double timeTakenMs = timeTakenNs / 1_000_000.0;
-        return ("Time taken to " + message + "  orders: " + timeTakenNs + "ns (" + timeTakenMs + "ms)");
+        return ("Time taken to " + message + "  orders: " + timeTakenNs + "ns (" + timeTakenMs + "ms)\n");
     }
 
     private static void out(String message){
