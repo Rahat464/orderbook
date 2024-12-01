@@ -1,148 +1,233 @@
 package dev.rahatali.orderbook.entities;
 
 import dev.rahatali.orderbook.enums.Type;
-import dev.rahatali.orderbook.structures.LinkedList;
-import dev.rahatali.orderbook.structures.Node;
 
-import java.util.Comparator;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+/**
+ * Represents an order book that stores ask and bid orders.
+ * The order book is implemented as a TreeMap with the price as the key and a list of orders as the value.
+ * The TreeMap is sorted in descending order for ask orders and ascending order for bid orders.
+ * The order book also has a scheduled task that periodically cleans up inactive orders.
+ */
 public class OrderBook {
-    private final LinkedList orders;
-    private final TreeMap<Float, LinkedList> ask;
-    private final TreeMap<Float, LinkedList> bid;
+    public static final int CLEANUP_INTERVAL = 5;
     private static final Logger LOGGER = Logger.getLogger(OrderBook.class.getName());
+
+    private final TreeMap<Float, LinkedList<Order>> ask;
+    private final TreeMap<Float, LinkedList<Order>> bid;
+    private boolean preferAsk = true;
     ScheduledExecutorService scheduler;
 
-    // Default constructor
     public OrderBook() {
-        orders = new LinkedList();
         ask = new TreeMap<>(Comparator.reverseOrder());
         bid = new TreeMap<>();
 
         scheduler = Executors.newScheduledThreadPool(1);
-        scheduler.scheduleAtFixedRate(this::cleanupInactiveOrders, 1, 1, TimeUnit.MINUTES);
+        scheduler.scheduleAtFixedRate(this::cleanupInactiveOrders, CLEANUP_INTERVAL, CLEANUP_INTERVAL, TimeUnit.MINUTES);
     }
 
-    // null - All orders
-    // Type.ASK - All ask orders
-    // Type.BID - All bid orders
+    /**
+     * Checks if the order book is empty.
+     *
+     * @param type the type of orders to check (null for all orders, Type. ASK for ask orders, Type. BID for bid orders)
+     * @return true if the specified type of orders is empty, false otherwise
+     */
     public boolean isEmpty(Type type) {
-        if (type == null) return orders.isEmpty();
+        if (type == null) return (ask.isEmpty() || bid.isEmpty());
         return type.isAsk() ? ask.isEmpty() : bid.isEmpty();
     }
 
+    /**
+     * Adds an order to the order book.
+     *
+     * @param order the order to be added
+     */
     public void add(Order order) {
-        final TreeMap<Float, LinkedList> map = order.isAsk() ? ask : bid;
-
-        orders.add(order);
-        if (map.containsKey(order.price)) {
-            map.get(order.price).add(order);
-        } else {
-            LinkedList list = new LinkedList();
-            list.add(order);
-            map.put(order.price, list);
-        }
-        log("Order added: " + order);
+        final TreeMap<Float, LinkedList<Order>> map = order.isAsk() ? ask : bid;
+        map.computeIfAbsent(order.price, _ -> new LinkedList<>()).add(order);
+        LOGGER.log(Level.INFO, "Order added: {0}", order);
     }
 
+    /**
+     * Matches orders in the order book.
+     * Edge Cases:
+     * - If both the ask and bid order books are empty, it returns false.
+     * - If the first order in the price level is not active, it continue       s to the next order.
+     * - If a matching order is found, it executes the trade and returns true.
+     * - If no matching order is found after iterating through the price level, it returns false.
+     *
+     * @return true if a matching order is found and executed, false otherwise
+     */
     public boolean match() {
-        Node current = orders.getHead();
-
-        while (current != null) {
-            Order order = current.getVal();
-            if (order.isActive()) {
-                Order matchingOrder = findMatchingOrder(order);
-                if (matchingOrder != null) {
-                    executeOrder(order, matchingOrder);
-                    return true;
-                }
-            }
-            current = current.getNext();
+        if (isEmpty(null)) {
+            LOGGER.log(Level.INFO, "Matching failed. Order book is empty");
+            return false;
         }
+
+        final TreeMap<Float, LinkedList<Order>> map = preferAsk ? ask : bid;
+        preferAsk = !preferAsk;
+
+        LinkedList<Order> priceLevel = map.firstEntry().getValue();
+        while (priceLevel.isEmpty()) {
+            map.pollFirstEntry();
+            priceLevel = map.firstEntry().getValue();
+        }
+
+        final Iterator<Order> iterator = priceLevel.iterator();
+        while (iterator.hasNext()) {
+            Order order = iterator.next();
+            if (!order.isActive()) {
+                iterator.remove();
+                continue;
+            }
+
+            Order matchingOrder = findMatchingOrder(order);
+
+            if (matchingOrder != null) {
+                LOGGER.log(Level.INFO, "Matching order found: {0}", matchingOrder);
+                executeOrder(order, matchingOrder);
+                return true;
+            }
+        }
+
         return false;
     }
 
+    /**
+     * Finds a matching order for the given order.
+     * Edge Cases:
+     * - If the order book is empty, it returns null.
+     * - If no active orders are found, it returns null.
+     * - If the order is a market order, it will match with the first active order found.
+     * - If the order is a limit order, it will match with the first active order within the price constraints.
+     *
+     * @param order the order to find a match for
+     * @return the matching order, or null if no match is found
+     */
     private Order findMatchingOrder(Order order) {
-        final TreeMap<Float, LinkedList> map = order.isAsk() ? bid : ask;
+        final TreeMap<Float, LinkedList<Order>> map = order.isAsk() ? bid : ask;
 
-        if (order.isMarket()) return findMatchingMarketOrder(map, order);
-        else return findMatchingLimitOrder(map, order);
+        LOGGER.log(Level.INFO, "Finding matching order for: {0}", order);
+        final Order matchingOrder =
+                order.isMarket() ?
+                findMatchingMarketOrder(map, order) :
+                findMatchingLimitOrder(map, order);
+
+        if (matchingOrder == null) {
+            LOGGER.log(Level.INFO, "Current map state: {0}", map);
+            LOGGER.info("No matching order found.");}
+        return matchingOrder;
     }
 
-    private Order findMatchingMarketOrder(TreeMap<Float, LinkedList> map, Order order) {
-        for (LinkedList list : map.values()) {
-            Node current = list.getHead();
-            while (current != null) {
-                Order matchingOrder = current.getVal();
-                if (matchingOrder.isActive() && order.match(matchingOrder)) {
-                    return matchingOrder;
-                }
-                current = current.getNext();
+    /**
+     * Finds a matching market order for the given order.
+     * Edge Cases:
+     * - If the order book is empty, it returns null.
+     * - If no active orders are found, it returns null.
+     * - If the order is a market order, it will match with the first active order found.
+     *
+     * @param map the map of orders to search
+     * @param order the order to find a match for
+     * @return the matching order, or null if no match is found
+     */
+    private Order findMatchingMarketOrder(TreeMap<Float, LinkedList<Order>> map, Order order) {
+        for (LinkedList<Order> priceLevel : map.values()) {
+            for (Order matchingOrder : priceLevel) {
+                if (matchingOrder.isActive() && order.match(matchingOrder)) return matchingOrder;
             }
         }
         return null;
     }
 
-    private Order findMatchingLimitOrder(TreeMap<Float, LinkedList> map, Order order) {
-        for (Map.Entry<Float, LinkedList> entry : map.entrySet()) {
-            if ((order.isAsk() && entry.getKey() <= order.price) || (order.isBid() && entry.getKey() >= order.price)) {
-                Node current = entry.getValue().getHead();
-                while (current != null) {
-                    Order matchingOrder = current.getVal();
-                    if (matchingOrder.isActive() && order.match(matchingOrder)) {
-                        return matchingOrder;
-                    }
-                    current = current.getNext();
-                }
+    /**
+     * Finds a matching limit order for the given order.
+     * Edge Cases:
+     * - If the order book is empty, it returns null.
+     * - If no active orders are found within the price constraints, it returns null.
+     * - If the order is a limit order, it will match with the first active order within the price constraints.
+     * - If the first order in the price level does not match, it continues to the next order without removing it.
+     *
+     * @param map the map of orders to search
+     * @param order the order to find a match for
+     * @return the matching order, or null if no match is found
+     */
+    private Order findMatchingLimitOrder(TreeMap<Float, LinkedList<Order>> map, Order order) {
+        for (Map.Entry<Float, LinkedList<Order>> key : map.entrySet()) {
+            Float price = key.getKey();
+            LinkedList<Order> priceLevel = key.getValue();
+
+            if ((order.isAsk() && price > order.price) || (order.isBid() && price < order.price)) continue;
+
+            for (Order matchingOrder : priceLevel) {
+                if (matchingOrder.isActive() && order.match(matchingOrder)) return matchingOrder;
             }
         }
         return null;
     }
 
+    /**
+     * Executes a trade between two orders.
+     * This method updates the quantities of both orders based on the minimum quantity
+     * between the two orders. If the quantity of either order reaches 0, it will be marked as completed by the Order.
+     *
+     * @param order1 the first order involved in the trade
+     * @param order2 the second order involved in the trade
+     */
     private void executeOrder(Order order1, Order order2) {
         int quantityTraded = Math.min(order1.getQuantity(), order2.getQuantity());
         order1.setQuantity(order1.getQuantity() - quantityTraded);
         order2.setQuantity(order2.getQuantity() - quantityTraded);
 
-        log(String.format("Order %d traded with Order %d for %d units at price %.2f",
-                order1.getId(), order2.getId(), quantityTraded, order2.price)
+        LOGGER.log(
+                Level.INFO,
+                "Order {0} traded with Order {1} for {2} units at price {3}",
+                new Object[]{order1.getId(), order2.getId(), quantityTraded, order2.price}
         );
     }
 
-    // Garbage Collection
-    // Orders are not removed immediately as it will take O(n) time
-    // Instead, we occasionally scan through the list and remove the completed orders all in one go
+    /**
+     * Periodically scans through the order book and removes completed orders.
+     * This method is scheduled to run at fixed intervals.
+     */
     private void cleanupInactiveOrders() {
-        int startSize = orders.size();
-        log("Garbage Collection Started");
+        LOGGER.info("Garbage Collection Started");
 
-        Node current = orders.getHead();
-        while (current != null) {
-            Order order = current.getVal();
-            if (!order.isActive()) {
-                Node tmp = current;
-                current = current.getPrev();
+        int ordersRemoved = 0;
+        ordersRemoved += cleanupInactiveOrders(ask);
+        ordersRemoved += cleanupInactiveOrders(bid);
 
-                final TreeMap<Float, LinkedList> map = order.isAsk() ? ask : bid;
-                orders.remove(tmp);
-                LinkedList list = map.get(order.price);
-                list.remove(tmp);
-            }
-            current = current.getNext();
-        }
-
-        log("Garbage Collection Finished:" + (startSize - orders.size()) + " removed");
+        LOGGER.log(Level.INFO, "Garbage Collection Finished: {0} removed", ordersRemoved);
     }
 
-    private void log(String message) {
-        if (LOGGER.isLoggable(Level.INFO)) LOGGER.info(message);
+    /**
+     * Scans through the given map of orders and removes inactive orders or empty price levels.
+     *
+     * @param map the map of orders to clean up
+     * @return the number of orders removed
+     */
+    private int cleanupInactiveOrders(TreeMap<Float, LinkedList<Order>> map) {
+        int ordersRemoved = 0;
+
+        for (LinkedList<Order> priceLevel : map.values()) {
+            Iterator<Order> iterator = priceLevel.iterator();
+
+            while (iterator.hasNext()) {
+                Order order = iterator.next();
+                if (!order.isActive()) {
+                    iterator.remove();
+                    ordersRemoved++;
+                }
+            }
+        }
+
+        map.values().removeIf(LinkedList::isEmpty);
+        return ordersRemoved;
     }
 
     @Override

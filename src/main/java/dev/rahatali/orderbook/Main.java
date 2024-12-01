@@ -50,6 +50,7 @@ public class Main {
                 orderBook.add(OrderFactory.createOrder());
             }
         } else createOrder();
+        out(orderBook.toString());
 
         long startTime = System.nanoTime();
         final boolean match = orderBook.match();
@@ -100,6 +101,7 @@ public class Main {
         long startTime;
         long endTime;
         int ordersMatched = 0;
+        String result = "";
 
         // Time taken to create 100k orders
         startTime = System.nanoTime();
@@ -107,7 +109,7 @@ public class Main {
             orderBook.add(OrderFactory.createOrder());
         }
         endTime = System.nanoTime();
-        outputBenchmarkResult(startTime, endTime, "create 1M");
+        result += generateBenchmarkMessage(startTime, endTime, "create 1M");
 
         // Time taken to match 1,000 orders
         startTime = System.nanoTime();
@@ -115,13 +117,15 @@ public class Main {
              if (orderBook.match()) ordersMatched++;
         }
         endTime = System.nanoTime();
-        outputBenchmarkResult(startTime, endTime, "match 1,000");
+        result += generateBenchmarkMessage(startTime, endTime, "match 1,000");
+        
+        out(result);
     }
 
-    private static void outputBenchmarkResult(long startTime, long endTime, String message){
+    private static String generateBenchmarkMessage(long startTime, long endTime, String message){
         long timeTakenNs = endTime - startTime;
         double timeTakenMs = timeTakenNs / 1_000_000.0;
-        out("Time taken to " + message + "  orders: " + timeTakenNs + "ns (" + timeTakenMs + "ms)");
+        return ("Time taken to " + message + "  orders: " + timeTakenNs + "ns (" + timeTakenMs + "ms)");
     }
 
     private static void out(String message){
