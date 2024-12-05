@@ -5,7 +5,6 @@ import dev.rahatali.orderbook.enums.Strategy;
 import dev.rahatali.orderbook.enums.Type;
 
 public abstract class Order {
-    // Public as these are read-only
     public final int id; // Upto ~2.1 billion orders
     public final float price;
     public final Type type;
@@ -25,26 +24,45 @@ public abstract class Order {
     }
 
     // Getters and setters
-    public int getId() {return id;}
+    public int getId() {
+        return id;
+    }
 
-    public boolean isBid() {return type.isBid();}
-    public boolean isAsk() {return type.isAsk();}
-    public boolean isMarket() {return strategyType.isMarket();}
+    public boolean isBid() {
+        return type.isBid();
+    }
 
-    public int getQuantity() {return quantity;}
+    public boolean isAsk() {
+        return type.isAsk();
+    }
+
+    public boolean isMarket() {
+        return strategyType.isMarket();
+    }
+
+    public int getQuantity() {
+        return quantity;
+    }
+
     public void setQuantity(int quantity) {
         if (quantity < 0) throw new IllegalArgumentException("Quantity cannot be negative");
         this.quantity = quantity;
-        if(this.quantity == 0) complete();
+        if (this.quantity == 0) complete();
     }
 
-    public boolean isActive() {return status.isActive();}
-    private void complete() {status = Status.COMPLETED;}
+    public boolean isActive() {
+        return status.isActive();
+    }
 
-    public boolean match(Order order){
-        if(order.type == this.type) return false;
+    private void complete() {
+        status = Status.COMPLETED;
+    }
+
+    public boolean match(Order order) {
+        if (order.type == this.type) return false;
         return strategyType == Strategy.MARKET || matchLimitOrder(order);
     }
+
     protected abstract boolean matchLimitOrder(Order order);
     // We do not need a matchMarketOrder method as it will always return true
     // The only condition that would need to be checked is if the order is a Bid or Ask

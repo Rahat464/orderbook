@@ -58,7 +58,7 @@ public class OrderBook {
      * Matches orders in the order book.
      * Edge Cases:
      * - If both the ask and bid order books are empty, it returns false.
-     * - If the first order in the price level is not active, it continue       s to the next order.
+     * - If the first order in the price level is not active, it continues to the next order.
      * - If a matching order is found, it executes the trade and returns true.
      * - If no matching order is found after iterating through the price level, it returns false.
      *
@@ -116,11 +116,12 @@ public class OrderBook {
         LOGGER.log(Level.INFO, "Finding matching order for: {0}", order);
         final Order matchingOrder =
                 order.isMarket() ?
-                findMatchingMarketOrder(map, order) :
-                findMatchingLimitOrder(map, order);
+                        findMatchingMarketOrder(map, order) :
+                        findMatchingLimitOrder(map, order);
 
         if (matchingOrder == null) {
-            LOGGER.info("No matching order found.");}
+            LOGGER.info("No matching order found.");
+        }
         return matchingOrder;
     }
 
@@ -131,7 +132,7 @@ public class OrderBook {
      * - If no active orders are found, it returns null.
      * - If the order is a market order, it will match with the first active order found.
      *
-     * @param map the map of orders to search
+     * @param map   the map of orders to search
      * @param order the order to find a match for
      * @return the matching order, or null if no match is found
      */
@@ -152,7 +153,7 @@ public class OrderBook {
      * - If the order is a limit order, it will match with the first active order within the price constraints.
      * - If the first order in the price level does not match, it continues to the next order without removing it.
      *
-     * @param map the map of orders to search
+     * @param map   the map of orders to search
      * @param order the order to find a match for
      * @return the matching order, or null if no match is found
      */
@@ -235,12 +236,12 @@ public class OrderBook {
 
         sb.append("Asks:\n");
         ask.entrySet().stream().limit(5).forEach(entry ->
-            sb.append(formatOrder(entry.getKey(), entry.getValue().size(), "\u001B[32m")) // Green color
+                sb.append(formatOrder(entry.getKey(), entry.getValue().size(), "\u001B[32m")) // Green color
         );
 
         sb.append("Bids:\n");
         bid.entrySet().stream().limit(5).forEach(entry ->
-            sb.append(formatOrder(entry.getKey(), entry.getValue().size(), "\u001B[31m")) // Red color
+                sb.append(formatOrder(entry.getKey(), entry.getValue().size(), "\u001B[31m")) // Red color
         );
 
         // Calculate disparity

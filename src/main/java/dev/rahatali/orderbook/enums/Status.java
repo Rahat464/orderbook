@@ -5,5 +5,7 @@ public enum Status {
     COMPLETED,
     CANCELLED;
 
-    public boolean isActive() {return this == ACTIVE;}
+    public boolean isActive() {
+        return this == ACTIVE;
+    }
 }

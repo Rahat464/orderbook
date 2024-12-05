@@ -33,7 +33,8 @@ public class Main {
                 :.......:::..:::::..::........:::........::..:::::..::........::::.......::::.......:::..::::..::\s
                 """);
 
-        while (true){ // NOSONAR - Infinite loop required for user input
+        while (true) { // NOSONAR - Infinite loop required for user input
+            out(orderBook.toString());
             out("1. Automated \n2. Manual \n3. Benchmark \n4. Quit");
             int input = SCANNER.nextInt();
 
@@ -50,7 +51,7 @@ public class Main {
         }
     }
 
-    private static void manual(){
+    private static void manual() {
         out("Would you like to prefill the OrderBook (1) or create your own order (2)?");
         int input = SCANNER.nextInt();
         if (input == 1) {
@@ -70,7 +71,7 @@ public class Main {
         out("Time taken to match order: " + timeTakenNs + "ns (" + timeTakenMs + "ms)");
     }
 
-    private static void createOrder(){
+    private static void createOrder() {
         out("Enter the price: ");
         float price = SCANNER.nextFloat();
         out("Enter the quantity: ");
@@ -90,7 +91,7 @@ public class Main {
         out("Order " + order.id + " created.");
     }
 
-    private static void auto(){
+    private static void auto() {
 
         out("Enter the number of orders to be created: ");
         int numOfOrders = SCANNER.nextInt();
@@ -105,37 +106,38 @@ public class Main {
         }
     }
 
-    private static void benchmark(){
+    private static void benchmark() {
         long startTime;
         long endTime;
         int ordersMatched = 0;
 
-        // Time taken to create 1M orders
+        // Time taken to create 100K orders
         startTime = System.nanoTime();
-        for (int i = 0; i < 1_000_000; i++) {
+        for (int i = 0; i < 100_000; i++) {
             orderBook.add(OrderFactory.createOrder());
         }
         endTime = System.nanoTime();
-        String result = generateBenchmarkMessage(startTime, endTime, "create 1M");
+        String result = generateBenchmarkMessage(startTime, endTime, "create 100K");
 
-        // Time taken to match 100,000 orders
+        // Time taken to match 10,000 orders
         startTime = System.nanoTime();
-        while (ordersMatched < 100_000) {
-             if (orderBook.match()) ordersMatched++;
+        while (ordersMatched < 10_000) {
+            if (orderBook.match()) ordersMatched++;
+            else break;
         }
         endTime = System.nanoTime();
-        result += generateBenchmarkMessage(startTime, endTime, "match 100K");
-        
+        result += generateBenchmarkMessage(startTime, endTime, "match 10K");
+
         out(result);
     }
 
-    private static String generateBenchmarkMessage(long startTime, long endTime, String message){
+    private static String generateBenchmarkMessage(long startTime, long endTime, String message) {
         long timeTakenNs = endTime - startTime;
         double timeTakenMs = timeTakenNs / 1_000_000.0;
         return ("Time taken to " + message + "  orders: " + timeTakenNs + "ns (" + timeTakenMs + "ms)\n");
     }
 
-    private static void out(String message){
+    private static void out(String message) {
         System.out.println(message); // NOSONAR
     }
 }
