@@ -15,6 +15,8 @@ public abstract class Order {
 
 
     protected Order(int id, float price, int quantity, Type type, Strategy strategyType) {
+        if (id < 0 || price < 0 || quantity < 0) throw new IllegalArgumentException("Invalid arguments");
+
         this.id = id;
         this.price = price;
         this.quantity = quantity;

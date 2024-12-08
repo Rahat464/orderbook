@@ -117,24 +117,22 @@ public class Main {
             orderBook.add(OrderFactory.createOrder());
         }
         endTime = System.nanoTime();
-        String result = generateBenchmarkMessage(startTime, endTime, "create 100K");
+        String result = generateBenchmarkMessage(startTime, endTime, "create", 100_000);
 
         // Time taken to match 10,000 orders
         startTime = System.nanoTime();
         while (ordersMatched < 10_000) {
             if (orderBook.match()) ordersMatched++;
-            else break;
         }
         endTime = System.nanoTime();
-        result += generateBenchmarkMessage(startTime, endTime, "match 10K");
+        result += generateBenchmarkMessage(startTime, endTime, "match", ordersMatched);
 
         out(result);
     }
 
-    private static String generateBenchmarkMessage(long startTime, long endTime, String message) {
-        long timeTakenNs = endTime - startTime;
-        double timeTakenMs = timeTakenNs / 1_000_000.0;
-        return ("Time taken to " + message + "  orders: " + timeTakenNs + "ns (" + timeTakenMs + "ms)\n");
+    private static String generateBenchmarkMessage(long startTime, long endTime, String message, int amount) {
+        double timeTaken = (endTime - startTime) / 1_000_000.0;
+        return ("Time taken to " + message + " " + String.format("%,d", amount) + " orders: " + timeTaken + "ms.\n");
     }
 
     private static void out(String message) {

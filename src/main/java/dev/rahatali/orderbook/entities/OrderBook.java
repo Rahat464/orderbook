@@ -21,6 +21,7 @@ public class OrderBook {
 
     private final TreeMap<Float, LinkedList<Order>> ask;
     private final TreeMap<Float, LinkedList<Order>> bid;
+    private final int[] size = (new int[]{0, 0}); // [0] = ask, [1] = bid
     private boolean preferAsk = true;
     ScheduledExecutorService scheduler;
 
@@ -33,14 +34,48 @@ public class OrderBook {
     }
 
     /**
+     * Gets the size of the order book.
+     *
+     * @param type the type of orders to get the size of (null for all orders, Type. ASK for ask orders, Type. BID for bid orders)
+     * @return the size of the order book
+     */
+    private int getSize(Type type) {
+        if (type == null) {
+            return size[0] + size[1];
+        }
+        return type.isAsk() ? size[0] : size[1];
+    }
+
+    /**
+     * Sets the size of the order book.
+     *
+     * @param type the type of orders to set the size of (null for all orders, Type. ASK for ask orders, Type. BID for bid orders)
+     * @param size the size of the order book
+     */
+    private void setSize(Type type, int size) {
+        if (type == null) {
+            this.size[0] = size;
+            this.size[1] = size;
+            return;
+        }
+        int mapIndex = type.isAsk() ? 0 : 1;
+        this.size[mapIndex] = size;
+    }
+
+    /**
      * Checks if the order book is empty.
      *
      * @param type the type of orders to check (null for all orders, Type. ASK for ask orders, Type. BID for bid orders)
      * @return true if the specified type of orders is empty, false otherwise
      */
     public boolean isEmpty(Type type) {
-        if (type == null) return (ask.isEmpty() || bid.isEmpty());
-        return type.isAsk() ? ask.isEmpty() : bid.isEmpty();
+        if (type == null) {
+            return ask.isEmpty() || bid.isEmpty() ||
+                    ask.values().stream().allMatch(List::isEmpty) ||
+                    bid.values().stream().allMatch(List::isEmpty);
+        }
+        TreeMap<Float, LinkedList<Order>> map = type.isAsk() ? ask : bid;
+        return map.isEmpty() || map.values().stream().allMatch(List::isEmpty);
     }
 
     /**
@@ -48,10 +83,24 @@ public class OrderBook {
      *
      * @param order the order to be added
      */
-    public void add(Order order) {
+    public synchronized void add(Order order) {
         final TreeMap<Float, LinkedList<Order>> map = order.isAsk() ? ask : bid;
         map.computeIfAbsent(order.price, _ -> new LinkedList<>()).add(order);
+        setSize(order.type, getSize(order.type) + 1);
         LOGGER.log(Level.INFO, "Order added: {0}", order);
+    }
+
+    /**
+     * Removes an order from the order book.
+     *
+     * @param order the order to be removed
+     */
+    private synchronized void remove(float price, Order order) {
+        final TreeMap<Float, LinkedList<Order>> map = order.isAsk() ? ask : bid;
+        LinkedList<Order> priceLevel = map.get(price);
+        priceLevel.remove(order);
+        if (priceLevel.isEmpty()) map.remove(price);
+        setSize(order.type, getSize(order.type) - 1);
     }
 
     /**
@@ -64,38 +113,65 @@ public class OrderBook {
      *
      * @return true if a matching order is found and executed, false otherwise
      */
-    public boolean match() {
+    public synchronized boolean match() {
         if (isEmpty(null)) {
             LOGGER.log(Level.INFO, "Matching failed. Order book is empty");
             return false;
         }
-
         final TreeMap<Float, LinkedList<Order>> map = preferAsk ? ask : bid;
-        preferAsk = !preferAsk;
 
-        LinkedList<Order> priceLevel = map.firstEntry().getValue();
-        while (priceLevel.isEmpty()) {
-            map.pollFirstEntry();
-            priceLevel = map.firstEntry().getValue();
+        Map.Entry<Float, LinkedList<Order>> entry = removeEmptyPriceLevels(map);
+        if (entry == null) {
+            LOGGER.log(Level.INFO, "Matching failed. No active orders found");
+            return false;
         }
 
+        boolean matchFound = processPriceLevel(entry.getValue());
+        if (matchFound) {
+            preferAsk = !preferAsk;
+        }
+        return matchFound;
+    }
+
+    /**
+     * Removes empty price levels from the order book.
+     *
+     * @param map the map of orders to remove empty price levels from
+     * @return the first non-empty price level, or null if no non-empty price levels are found
+     */
+    private Map.Entry<Float, LinkedList<Order>> removeEmptyPriceLevels(TreeMap<Float, LinkedList<Order>> map) {
+        while (!map.isEmpty()) {
+            Map.Entry<Float, LinkedList<Order>> entry = map.firstEntry();
+            if (entry != null && entry.getValue() != null && !entry.getValue().isEmpty()) {
+                return entry;
+            }
+            map.pollFirstEntry();
+        }
+        return null;
+    }
+
+    /**
+     * Processes a price level by iterating through the orders and finding matching orders.
+     *
+     * @param priceLevel the price level to process
+     * @return true if a matching order is found and executed, false otherwise
+     */
+    private boolean processPriceLevel(LinkedList<Order> priceLevel) {
         final Iterator<Order> iterator = priceLevel.iterator();
         while (iterator.hasNext()) {
             Order order = iterator.next();
             if (!order.isActive()) {
+                remove(order.price, order);
                 iterator.remove();
-                continue;
-            }
-
-            Order matchingOrder = findMatchingOrder(order);
-
-            if (matchingOrder != null) {
-                LOGGER.log(Level.INFO, "Matching order found: {0}", matchingOrder);
-                executeOrder(order, matchingOrder);
-                return true;
+            } else if (isOrderPriceWithinLimit(order)) {
+                Order matchingOrder = findMatchingOrder(order);
+                if (matchingOrder != null) {
+                    LOGGER.log(Level.INFO, "Matching order found: {0}", matchingOrder);
+                    executeOrder(order, matchingOrder);
+                    return true;
+                }
             }
         }
-
         return false;
     }
 
@@ -162,13 +238,34 @@ public class OrderBook {
             Float price = key.getKey();
             LinkedList<Order> priceLevel = key.getValue();
 
-            if ((order.isAsk() && price > order.price) || (order.isBid() && price < order.price)) continue;
+            if ((order.isAsk() && price < order.price) || (order.isBid() && price > order.price)) continue;
 
             for (Order matchingOrder : priceLevel) {
                 if (matchingOrder.isActive() && order.match(matchingOrder)) return matchingOrder;
             }
         }
         return null;
+    }
+
+    /**
+     * Checks if the price of a limit order is within the valid range.
+     *
+     * @param order the order to check
+     * @return true if the order price is within the valid range, false otherwise
+     */
+    private boolean isOrderPriceWithinLimit(Order order) {
+        final TreeMap<Float, LinkedList<Order>> map = order.isAsk() ? bid : ask;
+        if (map.isEmpty()) return false;
+        final Float bestPrice = map.firstKey();
+
+        if ((order.isAsk() && order.price >= bestPrice) || (order.isBid() && order.price <= bestPrice)) {
+            LOGGER.log(Level.INFO, "Limit order within range: {0}", order);
+            return true;
+        } else {
+            LOGGER.log(Level.FINE, "Order {0} price {1} out of range for best price {2}",
+                    new Object[]{order, order.price, bestPrice});
+            return false;
+        }
     }
 
     /**
@@ -183,6 +280,15 @@ public class OrderBook {
         int quantityTraded = Math.min(order1.getQuantity(), order2.getQuantity());
         order1.setQuantity(order1.getQuantity() - quantityTraded);
         order2.setQuantity(order2.getQuantity() - quantityTraded);
+
+        if (order1.getQuantity() == 0) {
+            remove(order1.price, order1);
+            setSize(order1.type, getSize(order1.type) - 1);
+        }
+        if (order2.getQuantity() == 0) {
+            remove(order2.price, order2);
+            setSize(order2.type, getSize(order2.type) - 1);
+        }
 
         LOGGER.log(
                 Level.INFO,
@@ -214,19 +320,25 @@ public class OrderBook {
     private int cleanupInactiveOrders(TreeMap<Float, LinkedList<Order>> map) {
         int ordersRemoved = 0;
 
-        for (LinkedList<Order> priceLevel : map.values()) {
-            Iterator<Order> iterator = priceLevel.iterator();
+        Iterator<Map.Entry<Float, LinkedList<Order>>> iterator = map.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<Float, LinkedList<Order>> entry = iterator.next();
+            LinkedList<Order> priceLevel = entry.getValue();
 
-            while (iterator.hasNext()) {
-                Order order = iterator.next();
+            // Remove all inactive orders in price level
+            for (Order order : priceLevel) {
                 if (!order.isActive()) {
-                    iterator.remove();
+                    setSize(order.type, getSize(order.type) - 1);
+                    remove(entry.getKey(), order);
                     ordersRemoved++;
                 }
             }
+
+            if (priceLevel.isEmpty()) {
+                iterator.remove();
+            }
         }
 
-        map.values().removeIf(LinkedList::isEmpty);
         return ordersRemoved;
     }
 
@@ -234,17 +346,13 @@ public class OrderBook {
     public String toString() {
         StringBuilder sb = new StringBuilder();
 
+        sb.append("Order Book Size: ").append(ask.size() + bid.size()).append("\n");
+
         sb.append("Asks:\n");
         ask.entrySet().stream().limit(5).forEach(entry ->
                 sb.append(formatOrder(entry.getKey(), entry.getValue().size(), "\u001B[32m")) // Green color
         );
 
-        sb.append("Bids:\n");
-        bid.entrySet().stream().limit(5).forEach(entry ->
-                sb.append(formatOrder(entry.getKey(), entry.getValue().size(), "\u001B[31m")) // Red color
-        );
-
-        // Calculate disparity
         Float highestBid = bid.isEmpty() ? null : bid.firstKey();
         Float lowestAsk = ask.isEmpty() ? null : ask.firstKey();
         if (highestBid != null && lowestAsk != null) {
@@ -253,6 +361,11 @@ public class OrderBook {
         } else {
             sb.append("Disparity: N/A\n");
         }
+
+        sb.append("Bids:\n");
+        bid.entrySet().stream().limit(5).forEach(entry ->
+                sb.append(formatOrder(entry.getKey(), entry.getValue().size(), "\u001B[31m")) // Red color
+        );
 
         return sb.toString();
     }

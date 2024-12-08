@@ -12,9 +12,9 @@ public class OrderFactory {
     private static int orderId = 0;
 
     // Geometric Brownian Motion parameters
-    private static final float BASE_PRICE = 100.0f; // S0
-    private static final float MIN_PRICE = 90.0f;
-    private static final float MAX_PRICE = 110.0f;
+    private static final float BASE_PRICE = 100f; // S0
+    private static final float MIN_PRICE = 70f;
+    private static final float MAX_PRICE = 130f;
     private static final float DRIFT = 0.01f;     // μ
     private static final float VOLATILITY = 0.02f; // σ
     private static final float DELTA_T = 1.0f;    // Time step
@@ -58,7 +58,8 @@ public class OrderFactory {
         float newPrice = lastPrice * (float) Math.exp(driftComponent + randomWalk);
 
         newPrice = BigDecimal.valueOf(newPrice).setScale(2, RoundingMode.HALF_UP).floatValue();
-        lastPrice = Math.clamp(newPrice, MIN_PRICE, MAX_PRICE);
+        newPrice = Math.clamp(newPrice, MIN_PRICE, MAX_PRICE);
+        lastPrice = newPrice;
 
         return newPrice;
     }
