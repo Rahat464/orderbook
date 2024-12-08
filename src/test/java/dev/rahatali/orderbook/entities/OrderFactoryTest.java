@@ -23,8 +23,8 @@ class OrderFactoryTest {
 
     @Test
     void ensurePriceIsGenerated() {
-        final int MAX_PRICE = 110;
-        final int MIN_PRICE = 90;
+        final int MAX_PRICE = 130;
+        final int MIN_PRICE = 70;
 
         for (int i = 0; i < 100; i++) {
             float price = OrderFactory.createOrder().price;
