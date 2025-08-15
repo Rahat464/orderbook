@@ -5,7 +5,7 @@ This project is an order matching system that simulates a basic stock exchange. 
 The system uses a `LinkedList` to manage orders and a `TreeMap` to store and match bids and asks efficiently.
 It supports both limit and market orders, and provides basic logging and performance measurement features.
 
-This has been developed using Java 22.0.1, and although not tested, should work with any recent version of Java.
+This has been developed using Java 21.0.8, and although not tested, should work with any recent version of Java.
 
 ## Setup Instructions
 1. **Clone the Repository**:

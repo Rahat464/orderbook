@@ -85,7 +85,7 @@ public class OrderBook {
      */
     public synchronized void add(Order order) {
         final TreeMap<Float, LinkedList<Order>> map = order.isAsk() ? ask : bid;
-        map.computeIfAbsent(order.price, _ -> new LinkedList<>()).add(order);
+        map.computeIfAbsent(order.price, x -> new LinkedList<>()).add(order);
         setSize(order.type, getSize(order.type) + 1);
         LOGGER.log(Level.INFO, "Order added: {0}", order);
     }
