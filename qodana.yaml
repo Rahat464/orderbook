@@ -1,0 +1,15 @@
+version: 1.0
+
+linter: jetbrains/qodana-jvm:2025.2
+projectJDK: 21
+
+profile:
+  name: qodana.recommended
+
+exclude:
+  - name: All
+    paths:
+      - target
+      - .idea
+      - .github
+      - "**/generated-sources/**"
