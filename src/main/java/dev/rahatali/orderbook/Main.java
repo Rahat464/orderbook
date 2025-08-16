@@ -6,6 +6,7 @@ import dev.rahatali.orderbook.entities.OrderFactory;
 import dev.rahatali.orderbook.enums.Strategy;
 import dev.rahatali.orderbook.enums.Type;
 
+import java.math.BigDecimal;
 import java.util.Scanner;
 
 public class Main {
@@ -52,11 +53,18 @@ public class Main {
     }
 
     private static void manual() {
+        OrderFactory orderFactory = new OrderFactory(
+                BigDecimal.valueOf(150.00),
+                BigDecimal.valueOf(0.0005),
+                BigDecimal.valueOf(0.01),
+                2
+        );
+
         out("Would you like to prefill the OrderBook (1) or create your own order (2)?");
         int input = SCANNER.nextInt();
         if (input == 1) {
             for (int i = 0; i < 1000; i++) {
-                orderBook.add(OrderFactory.createOrder());
+                orderBook.add(orderFactory.createOrder());
             }
         } else createOrder();
         out(orderBook.toString());
@@ -81,7 +89,14 @@ public class Main {
         out("Enter the strategy (1. MARKET, 2. LIMIT): ");
         int strategy = SCANNER.nextInt();
 
-        Order order = OrderFactory.createOrder(
+        OrderFactory orderFactory = new OrderFactory(
+                BigDecimal.valueOf(150.00),
+                BigDecimal.valueOf(0.0005),
+                BigDecimal.valueOf(0.01),
+                2
+        );
+
+        Order order = orderFactory.createOrder(
                 price,
                 quantity,
                 type == 1 ? Type.BID : Type.ASK,
@@ -92,12 +107,18 @@ public class Main {
     }
 
     private static void auto() {
+        OrderFactory orderFactory = new OrderFactory(
+                BigDecimal.valueOf(150.00),
+                BigDecimal.valueOf(0.0005),
+                BigDecimal.valueOf(0.01),
+                2
+        );
 
         out("Enter the number of orders to be created: ");
         int numOfOrders = SCANNER.nextInt();
 
         for (int i = 0; i < numOfOrders; i++) {
-            orderBook.add(OrderFactory.createOrder());
+            orderBook.add(orderFactory.createOrder());
         }
 
         // Match all orders
@@ -107,6 +128,13 @@ public class Main {
     }
 
     private static void benchmark() {
+        OrderFactory orderFactory = new OrderFactory(
+                BigDecimal.valueOf(150.00),
+                BigDecimal.valueOf(0.0005),
+                BigDecimal.valueOf(0.01),
+                2
+        );
+
         long startTime;
         long endTime;
         int ordersMatched = 0;
@@ -114,7 +142,7 @@ public class Main {
         // Time taken to create 100K orders
         startTime = System.nanoTime();
         for (int i = 0; i < 100_000; i++) {
-            orderBook.add(OrderFactory.createOrder());
+            orderBook.add(orderFactory.createOrder());
         }
         endTime = System.nanoTime();
         String result = generateBenchmarkMessage(startTime, endTime, "create", 100_000);

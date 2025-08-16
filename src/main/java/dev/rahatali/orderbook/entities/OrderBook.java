@@ -2,12 +2,15 @@ package dev.rahatali.orderbook.entities;
 
 import dev.rahatali.orderbook.enums.Type;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import static java.math.RoundingMode.HALF_UP;
 
 /**
  * Represents an order book that stores ask and bid orders.
@@ -19,8 +22,8 @@ public class OrderBook {
     public static final int CLEANUP_INTERVAL = 5;
     private static final Logger LOGGER = Logger.getLogger(OrderBook.class.getName());
 
-    private final TreeMap<Float, LinkedList<Order>> ask;
-    private final TreeMap<Float, LinkedList<Order>> bid;
+    private final TreeMap<BigDecimal, LinkedList<Order>> ask;
+    private final TreeMap<BigDecimal, LinkedList<Order>> bid;
     private final int[] size = (new int[]{0, 0}); // [0] = ask, [1] = bid
     private boolean preferAsk = true;
     ScheduledExecutorService scheduler;
@@ -74,7 +77,7 @@ public class OrderBook {
                     ask.values().stream().allMatch(List::isEmpty) ||
                     bid.values().stream().allMatch(List::isEmpty);
         }
-        TreeMap<Float, LinkedList<Order>> map = type.isAsk() ? ask : bid;
+        TreeMap<BigDecimal, LinkedList<Order>> map = type.isAsk() ? ask : bid;
         return map.isEmpty() || map.values().stream().allMatch(List::isEmpty);
     }
 
@@ -84,7 +87,7 @@ public class OrderBook {
      * @param order the order to be added
      */
     public synchronized void add(Order order) {
-        final TreeMap<Float, LinkedList<Order>> map = order.isAsk() ? ask : bid;
+        final TreeMap<BigDecimal, LinkedList<Order>> map = order.isAsk() ? ask : bid;
         map.computeIfAbsent(order.price, x -> new LinkedList<>()).add(order);
         setSize(order.type, getSize(order.type) + 1);
         LOGGER.log(Level.INFO, "Order added: {0}", order);
@@ -95,8 +98,8 @@ public class OrderBook {
      *
      * @param order the order to be removed
      */
-    private synchronized void remove(float price, Order order) {
-        final TreeMap<Float, LinkedList<Order>> map = order.isAsk() ? ask : bid;
+    private synchronized void remove(BigDecimal price, Order order) {
+        final TreeMap<BigDecimal, LinkedList<Order>> map = order.isAsk() ? ask : bid;
         LinkedList<Order> priceLevel = map.get(price);
         priceLevel.remove(order);
         if (priceLevel.isEmpty()) map.remove(price);
@@ -118,9 +121,9 @@ public class OrderBook {
             LOGGER.log(Level.INFO, "Matching failed. Order book is empty");
             return false;
         }
-        final TreeMap<Float, LinkedList<Order>> map = preferAsk ? ask : bid;
+        final TreeMap<BigDecimal, LinkedList<Order>> map = preferAsk ? ask : bid;
 
-        Map.Entry<Float, LinkedList<Order>> entry = removeEmptyPriceLevels(map);
+        Map.Entry<BigDecimal, LinkedList<Order>> entry = removeEmptyPriceLevels(map);
         if (entry == null) {
             LOGGER.log(Level.INFO, "Matching failed. No active orders found");
             return false;
@@ -139,9 +142,9 @@ public class OrderBook {
      * @param map the map of orders to remove empty price levels from
      * @return the first non-empty price level, or null if no non-empty price levels are found
      */
-    private Map.Entry<Float, LinkedList<Order>> removeEmptyPriceLevels(TreeMap<Float, LinkedList<Order>> map) {
+    private Map.Entry<BigDecimal, LinkedList<Order>> removeEmptyPriceLevels(TreeMap<BigDecimal, LinkedList<Order>> map) {
         while (!map.isEmpty()) {
-            Map.Entry<Float, LinkedList<Order>> entry = map.firstEntry();
+            Map.Entry<BigDecimal, LinkedList<Order>> entry = map.firstEntry();
             if (entry != null && entry.getValue() != null && !entry.getValue().isEmpty()) {
                 return entry;
             }
@@ -187,7 +190,7 @@ public class OrderBook {
      * @return the matching order, or null if no match is found
      */
     private Order findMatchingOrder(Order order) {
-        final TreeMap<Float, LinkedList<Order>> map = order.isAsk() ? bid : ask;
+        final TreeMap<BigDecimal, LinkedList<Order>> map = order.isAsk() ? bid : ask;
 
         LOGGER.log(Level.INFO, "Finding matching order for: {0}", order);
         final Order matchingOrder =
@@ -212,7 +215,7 @@ public class OrderBook {
      * @param order the order to find a match for
      * @return the matching order, or null if no match is found
      */
-    private Order findMatchingMarketOrder(TreeMap<Float, LinkedList<Order>> map, Order order) {
+    private Order findMatchingMarketOrder(TreeMap<BigDecimal, LinkedList<Order>> map, Order order) {
         for (LinkedList<Order> priceLevel : map.values()) {
             for (Order matchingOrder : priceLevel) {
                 if (matchingOrder.isActive() && order.match(matchingOrder)) return matchingOrder;
@@ -233,12 +236,13 @@ public class OrderBook {
      * @param order the order to find a match for
      * @return the matching order, or null if no match is found
      */
-    private Order findMatchingLimitOrder(TreeMap<Float, LinkedList<Order>> map, Order order) {
-        for (Map.Entry<Float, LinkedList<Order>> key : map.entrySet()) {
-            Float price = key.getKey();
+    private Order findMatchingLimitOrder(TreeMap<BigDecimal, LinkedList<Order>> map, Order order) {
+        for (Map.Entry<BigDecimal, LinkedList<Order>> key : map.entrySet()) {
+            BigDecimal price = key.getKey();
             LinkedList<Order> priceLevel = key.getValue();
 
-            if ((order.isAsk() && price < order.price) || (order.isBid() && price > order.price)) continue;
+            if ((order.isAsk() && price.compareTo(order.price) > 0) || (order.isBid() && price.compareTo(order.price) < 0))
+                continue;
 
             for (Order matchingOrder : priceLevel) {
                 if (matchingOrder.isActive() && order.match(matchingOrder)) return matchingOrder;
@@ -254,11 +258,11 @@ public class OrderBook {
      * @return true if the order price is within the valid range, false otherwise
      */
     private boolean isOrderPriceWithinLimit(Order order) {
-        final TreeMap<Float, LinkedList<Order>> map = order.isAsk() ? bid : ask;
+        final TreeMap<BigDecimal, LinkedList<Order>> map = order.isAsk() ? bid : ask;
         if (map.isEmpty()) return false;
-        final Float bestPrice = map.firstKey();
+        final BigDecimal bestPrice = map.firstKey();
 
-        if ((order.isAsk() && order.price >= bestPrice) || (order.isBid() && order.price <= bestPrice)) {
+        if ((order.isAsk() && order.price.compareTo(bestPrice) >= 0 || (order.isBid() && order.price.compareTo(bestPrice) <= 0))) {
             LOGGER.log(Level.INFO, "Limit order within range: {0}", order);
             return true;
         } else {
@@ -317,12 +321,12 @@ public class OrderBook {
      * @param map the map of orders to clean up
      * @return the number of orders removed
      */
-    private int cleanupInactiveOrders(TreeMap<Float, LinkedList<Order>> map) {
+    private int cleanupInactiveOrders(TreeMap<BigDecimal, LinkedList<Order>> map) {
         int ordersRemoved = 0;
 
-        Iterator<Map.Entry<Float, LinkedList<Order>>> iterator = map.entrySet().iterator();
+        Iterator<Map.Entry<BigDecimal, LinkedList<Order>>> iterator = map.entrySet().iterator();
         while (iterator.hasNext()) {
-            Map.Entry<Float, LinkedList<Order>> entry = iterator.next();
+            Map.Entry<BigDecimal, LinkedList<Order>> entry = iterator.next();
             LinkedList<Order> priceLevel = entry.getValue();
 
             // Remove all inactive orders in price level
@@ -353,11 +357,13 @@ public class OrderBook {
                 sb.append(formatOrder(entry.getKey(), entry.getValue().size(), "\u001B[32m")) // Green color
         );
 
-        Float highestBid = bid.isEmpty() ? null : bid.firstKey();
-        Float lowestAsk = ask.isEmpty() ? null : ask.firstKey();
+        BigDecimal highestBid = bid.isEmpty() ? null : bid.firstKey();
+        BigDecimal lowestAsk = ask.isEmpty() ? null : ask.firstKey();
         if (highestBid != null && lowestAsk != null) {
-            float disparity = lowestAsk - highestBid;
-            sb.append(String.format("Disparity: %.2f%n", disparity));
+            BigDecimal disparity = lowestAsk.subtract(highestBid);
+            sb.append("Disparity: ")
+                    .append(disparity.setScale(2, HALF_UP).toPlainString())
+                    .append('\n');
         } else {
             sb.append("Disparity: N/A\n");
         }
@@ -370,7 +376,7 @@ public class OrderBook {
         return sb.toString();
     }
 
-    private String formatOrder(float price, int quantity, String color) {
-        return String.format("%sPrice: %.2f, Quantity: %d\u001B[0m%n", color, price, quantity);
+    private String formatOrder(BigDecimal price, int quantity, String color) {
+        return String.format("%sPrice: %s, Quantity: %d\u001B[0m%n", color, price.setScale(2, HALF_UP).toPlainString(), quantity);
     }
 }

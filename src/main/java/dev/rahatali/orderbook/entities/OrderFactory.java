@@ -6,62 +6,77 @@ import dev.rahatali.orderbook.enums.Type;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class OrderFactory {
-    static Random r = new Random();
-    private static int orderId = 0;
+    private static final AtomicInteger ORDER_ID_GENERATOR = new AtomicInteger(1);
+    private static final Random RANDOM = new Random();
 
-    // Geometric Brownian Motion parameters
-    private static final float BASE_PRICE = 100f; // S0
-    private static final float MIN_PRICE = 70f;
-    private static final float MAX_PRICE = 130f;
-    private static final float DRIFT = 0.01f;     // μ
-    private static final float VOLATILITY = 0.02f; // σ
-    private static final float DELTA_T = 1.0f;    // Time step
-    private static float lastPrice = BASE_PRICE;
+    private final BigDecimal drift;
+    private final BigDecimal volatility;
+    private final int priceScale; // Number of decimal places for the price
+    private BigDecimal lastPrice;
 
-    private OrderFactory() {
+    public OrderFactory(BigDecimal initialPrice, BigDecimal drift, BigDecimal volatility, int priceScale) {
+        this.lastPrice = initialPrice;
+        this.drift = drift;
+        this.volatility = volatility;
+        this.priceScale = priceScale;
     }
 
-    // Uses random values to create an order
-    // For automated order creation
-    public static Order createOrder() {
-        orderId++;
-
-        float price = generatePrice();
-        int quantity = r.nextInt(100) + 1;
-        Type type = (r.nextInt(2) == 0) ? Type.BID : Type.ASK;
-        Strategy strategyType = (r.nextInt(2) == 0) ? Strategy.MARKET : Strategy.LIMIT;
-
-        if (type.isAsk()) return new Ask(orderId, price, quantity, strategyType);
-        else return new Bid(orderId, price, quantity, strategyType);
+    // Random order for simulations
+    public Order createOrder() {
+        int id = ORDER_ID_GENERATOR.getAndIncrement();
+        BigDecimal price = generateNextPrice();
+        int quantity = RANDOM.nextInt(100) + 1; // 1..100
+        Type type = RANDOM.nextBoolean() ? Type.ASK : Type.BID;
+        Strategy strategy = RANDOM.nextBoolean() ? Strategy.LIMIT : Strategy.MARKET;
+        return type.isAsk() ? new Ask(id, price, quantity, strategy) : new Bid(id, price, quantity, strategy);
     }
 
-    // For user input
-    public static Order createOrder(float price, int quantity, Type type, Strategy strategyType) {
-        orderId++;
-        if (type.isAsk()) return new Ask(orderId, price, quantity, strategyType);
-        else return new Bid(orderId, price, quantity, strategyType);
+    // Explicit order creation with BigDecimal
+    public Order createOrder(BigDecimal price, int quantity, Type type, Strategy strategy) {
+        int id = ORDER_ID_GENERATOR.getAndIncrement();
+        return type.isAsk() ? new Ask(id, price, quantity, strategy) : new Bid(id, price, quantity, strategy);
+    }
+
+    // Backward-compatible overload used by Main (float price)
+    public Order createOrder(float price, int quantity, Type type, Strategy strategy) {
+        return createOrder(BigDecimal.valueOf(price).setScale(2, RoundingMode.HALF_UP), quantity, type, strategy);
     }
 
     /**
-     * Generates a new price using Geometric Brownian Motion
-     * S(t) = S(0) * e^((μ - 0.5 * σ^2)*t + σ * √t * Z)
-     *
-     * @return new price
+     * Generates a new price using Geometric Brownian Motion with BigDecimal for precision.
+     * Note: This is more complex than with floats, but it is correct.
+     * @return The next price in the sequence.
      */
-    private static float generatePrice() {
-        float randomComponent = (float) r.nextGaussian();
+    private BigDecimal generateNextPrice() {
+        // S(t) = S(t-1) * exp( (μ - 0.5 * σ^2)Δt + σ * ε * sqrt(Δt) )
+        // Using Δt = 1 for simplicity.
 
-        float driftComponent = (DRIFT - 0.5f * VOLATILITY * VOLATILITY) * DELTA_T; // (μ - 0.5 * σ^2) * t
-        float randomWalk = VOLATILITY * (float) Math.sqrt(DELTA_T) * randomComponent; // σ * √t * Z
-        float newPrice = lastPrice * (float) Math.exp(driftComponent + randomWalk);
+        // Standard Gaussian random number
+        double gaussian = RANDOM.nextGaussian();
+        BigDecimal randomComponent = BigDecimal.valueOf(gaussian);
 
-        newPrice = BigDecimal.valueOf(newPrice).setScale(2, RoundingMode.HALF_UP).floatValue();
-        newPrice = Math.clamp(newPrice, MIN_PRICE, MAX_PRICE);
-        lastPrice = newPrice;
+        // Term 1: (μ - 0.5 * σ^2)
+        BigDecimal driftTerm = drift.subtract(volatility.pow(2).divide(BigDecimal.valueOf(2), priceScale + 5, RoundingMode.HALF_UP));
 
+        // Term 2: σ * ε
+        BigDecimal randomWalkTerm = volatility.multiply(randomComponent);
+
+        // Exponent: term1 + term2
+        BigDecimal exponent = driftTerm.add(randomWalkTerm);
+
+        // newPrice = lastPrice * e^(exponent)
+        // Math.exp() takes a double, so we do the final step using doubles but with high precision from BigDecimal
+        BigDecimal priceMovement = BigDecimal.valueOf(Math.exp(exponent.doubleValue()));
+        BigDecimal newPrice = lastPrice.multiply(priceMovement);
+
+        // Clamp and set scale
+        // newPrice = newPrice.max(MIN_PRICE).min(MAX_PRICE); // Assuming MIN/MAX are BigDecimals
+        newPrice = newPrice.setScale(priceScale, RoundingMode.HALF_UP);
+
+        this.lastPrice = newPrice;
         return newPrice;
     }
-
 }

@@ -4,9 +4,11 @@ import dev.rahatali.orderbook.enums.Status;
 import dev.rahatali.orderbook.enums.Strategy;
 import dev.rahatali.orderbook.enums.Type;
 
+import java.math.BigDecimal;
+
 public abstract class Order {
     public final int id; // Upto ~2.1 billion orders
-    public final float price;
+    public final BigDecimal price;
     public final Type type;
     public final Strategy strategyType;
     public final long timestamp;
@@ -14,8 +16,9 @@ public abstract class Order {
     private Status status = Status.ACTIVE;
 
 
-    protected Order(int id, float price, int quantity, Type type, Strategy strategyType) {
-        if (id < 0 || price < 0 || quantity < 0) throw new IllegalArgumentException("Invalid arguments");
+    protected Order(int id, BigDecimal price, int quantity, Type type, Strategy strategyType) {
+        if (id < 0 || price.compareTo(BigDecimal.ZERO) < 0 || quantity < 0)
+            throw new IllegalArgumentException("Invalid arguments");
 
         this.id = id;
         this.price = price;
