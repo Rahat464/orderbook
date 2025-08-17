@@ -34,13 +34,14 @@ jobs:
       - name: Build and test with Maven
         run: mvn -B clean verify
 
-      - name: Upload code coverage report
-        uses: codecov/codecov-action@v4
+      - name: Upload JaCoCo HTML report as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: target/site/jacoco/
 
       - name: Qodana Scan
         uses: JetBrains/qodana-action@v2025.2
-        with:
-          args: --fail-threshold=0 --save-report --report-dir=qodana-report
 
       - name: Upload Qodana report as an artifact
         uses: actions/upload-artifact@v4
@@ -51,12 +52,11 @@ jobs:
 
   build-and-push-docker-image:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: build-and-analyse # This makes it wait for the first job
+    needs: build-and-analyse
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
-      packages: write # Permission to push to GHCR
+      packages: write
 
     steps:
       - name: Check out code
@@ -72,10 +72,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
-          # Example tag: ghcr.io/your-username/your-repo-name:commit-hash
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
