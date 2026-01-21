@@ -3,8 +3,6 @@ package dev.rahatali.orderbook.entities;
 import dev.rahatali.orderbook.enums.Strategy;
 import dev.rahatali.orderbook.enums.Type;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -12,12 +10,20 @@ public class OrderFactory {
     private static final AtomicInteger ORDER_ID_GENERATOR = new AtomicInteger(1);
     private static final Random RANDOM = new Random();
 
-    private final BigDecimal drift;
-    private final BigDecimal volatility;
+    private final double drift;
+    private final double volatility;
+    private long lastPrice;
     private final int priceScale; // Number of decimal places for the price
-    private BigDecimal lastPrice;
 
-    public OrderFactory(BigDecimal initialPrice, BigDecimal drift, BigDecimal volatility, int priceScale) {
+    public OrderFactory() {
+        this.priceScale = 2;
+        double scaleFactor = Math.pow(10, this.priceScale);
+        this.lastPrice = (long) (150.00 * scaleFactor);
+        this.drift = 0.0005;
+        this.volatility = 0.01;
+    }
+
+    public OrderFactory(long initialPrice, double drift, double volatility, int priceScale) {
         this.lastPrice = initialPrice;
         this.drift = drift;
         this.volatility = volatility;
@@ -25,58 +31,48 @@ public class OrderFactory {
     }
 
     // Random order for simulations
-    public Order createOrder() {
+    public OrderParams createOrder() {
         int id = ORDER_ID_GENERATOR.getAndIncrement();
-        BigDecimal price = generateNextPrice();
+
+        long price = generateNextPrice();
         int quantity = RANDOM.nextInt(100) + 1; // 1..100
         Type type = RANDOM.nextBoolean() ? Type.ASK : Type.BID;
         Strategy strategy = RANDOM.nextBoolean() ? Strategy.LIMIT : Strategy.MARKET;
-        return type.isAsk() ? new Ask(id, price, quantity, strategy) : new Bid(id, price, quantity, strategy);
+        return new OrderParams(id, price, quantity, type, strategy);
     }
 
-    // Explicit order creation with BigDecimal
-    public Order createOrder(BigDecimal price, int quantity, Type type, Strategy strategy) {
+    // Explicit order creation
+    public OrderParams createOrder(long price, int quantity, Type type, Strategy strategy) {
         int id = ORDER_ID_GENERATOR.getAndIncrement();
-        return type.isAsk() ? new Ask(id, price, quantity, strategy) : new Bid(id, price, quantity, strategy);
-    }
-
-    // Backward-compatible overload used by Main (float price)
-    public Order createOrder(float price, int quantity, Type type, Strategy strategy) {
-        return createOrder(BigDecimal.valueOf(price).setScale(2, RoundingMode.HALF_UP), quantity, type, strategy);
+        return new OrderParams(id, price, quantity, type, strategy);
     }
 
     /**
-     * Generates a new price using Geometric Brownian Motion with BigDecimal for precision.
-     * Note: This is more complex than with floats, but it is correct.
+     * Generates a new price using Geometric Brownian Motion with long for precision.
      * @return The next price in the sequence.
      */
-    private BigDecimal generateNextPrice() {
+    private long generateNextPrice() {
+        // 1. Define the scaling factor based on the number of decimal places.
+        double scaleFactor = Math.pow(10, this.priceScale);
+
+        // 2. De-scale the last price from a long to a double for calculation.
+        double lastPriceAsDouble = this.lastPrice / scaleFactor;
+
+        // 3. Perform the Geometric Brownian Motion calculation purely with doubles.
         // S(t) = S(t-1) * exp( (μ - 0.5 * σ^2)Δt + σ * ε * sqrt(Δt) )
         // Using Δt = 1 for simplicity.
-
-        // Standard Gaussian random number
         double gaussian = RANDOM.nextGaussian();
-        BigDecimal randomComponent = BigDecimal.valueOf(gaussian);
+        double driftTerm = this.drift - (0.5 * this.volatility * this.volatility);
+        double randomWalkTerm = this.volatility * gaussian;
+        double exponent = driftTerm + randomWalkTerm;
+        double priceMovementMultiplier = Math.exp(exponent);
 
-        // Term 1: (μ - 0.5 * σ^2)
-        BigDecimal driftTerm = drift.subtract(volatility.pow(2).divide(BigDecimal.valueOf(2), priceScale + 5, RoundingMode.HALF_UP));
+        double newPriceAsDouble = lastPriceAsDouble * priceMovementMultiplier;
+        this.lastPrice = Math.round(newPriceAsDouble * scaleFactor);
+        return this.lastPrice;
+    }
 
-        // Term 2: σ * ε
-        BigDecimal randomWalkTerm = volatility.multiply(randomComponent);
-
-        // Exponent: term1 + term2
-        BigDecimal exponent = driftTerm.add(randomWalkTerm);
-
-        // newPrice = lastPrice * e^(exponent)
-        // Math.exp() takes a double, so we do the final step using doubles but with high precision from BigDecimal
-        BigDecimal priceMovement = BigDecimal.valueOf(Math.exp(exponent.doubleValue()));
-        BigDecimal newPrice = lastPrice.multiply(priceMovement);
-
-        // Clamp and set scale
-        // newPrice = newPrice.max(MIN_PRICE).min(MAX_PRICE); // Assuming MIN/MAX are BigDecimals
-        newPrice = newPrice.setScale(priceScale, RoundingMode.HALF_UP);
-
-        this.lastPrice = newPrice;
-        return newPrice;
+    // Simple record to hold order parameters instead of creating full Order objects.
+    public record OrderParams(int id, long price, int quantity, Type type, Strategy strategy) {
     }
 }

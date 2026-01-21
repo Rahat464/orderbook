@@ -3,21 +3,29 @@ package dev.rahatali.orderbook.entities;
 import dev.rahatali.orderbook.enums.Status;
 import dev.rahatali.orderbook.enums.Strategy;
 import dev.rahatali.orderbook.enums.Type;
+import lombok.Getter;
+import lombok.Setter;
 
-import java.math.BigDecimal;
-
-public abstract class Order {
-    public final int id; // Upto ~2.1 billion orders
-    public final BigDecimal price;
-    public final Type type;
-    public final Strategy strategyType;
-    public final long timestamp;
+@Getter
+@Setter
+public class Order {
+    private int id;
+    private long price;
+    private Type type;
+    private Strategy strategyType;
     private int quantity;
-    private Status status = Status.ACTIVE;
+    private Status status = Status.CANCELLED;
+    private long timestamp;
+    private int queueIndex;
 
+    /*
+    Instantiate empty order object
+    * */
+    protected Order() {
+    }
 
-    protected Order(int id, BigDecimal price, int quantity, Type type, Strategy strategyType) {
-        if (id < 0 || price.compareTo(BigDecimal.ZERO) < 0 || quantity < 0)
+    protected void modifyOrder(int id, long price, int quantity, Type type, Strategy strategyType) {
+        if (id < 0 || price <= 0 || quantity < 0)
             throw new IllegalArgumentException("Invalid arguments");
 
         this.id = id;
@@ -26,36 +34,16 @@ public abstract class Order {
         this.type = type;
         this.strategyType = strategyType;
         this.timestamp = System.currentTimeMillis();
+        this.status = Status.ACTIVE;
     }
 
-    // Getters and setters
-    public int getId() {
-        return id;
-    }
-
-    public boolean isBid() {
-        return type.isBid();
-    }
-
-    public boolean isAsk() {
-        return type.isAsk();
-    }
-
-    public boolean isMarket() {
-        return strategyType.isMarket();
-    }
-
-    public int getQuantity() {
-        return quantity;
-    }
-
-    public void setQuantity(int quantity) {
+    public final void setQuantity(int quantity) {
         if (quantity < 0) throw new IllegalArgumentException("Quantity cannot be negative");
         this.quantity = quantity;
         if (this.quantity == 0) complete();
     }
 
-    public boolean isActive() {
+    public final boolean isActive() {
         return status.isActive();
     }
 
@@ -63,18 +51,22 @@ public abstract class Order {
         status = Status.COMPLETED;
     }
 
-    public boolean match(Order order) {
-        if (order.type == this.type) return false;
-        return strategyType == Strategy.MARKET || matchLimitOrder(order);
+    public void reset() {
+        this.id = 0;
+        this.price = 0;
+        this.quantity = 0;
+        this.type = null;
+        this.strategyType = null;
+        this.status = Status.CANCELLED;
+        this.timestamp = 0;
+        this.queueIndex = 0;
     }
 
-    protected abstract boolean matchLimitOrder(Order order);
-    // We do not need a matchMarketOrder method as it will always return true
-    // The only condition that would need to be checked is if the order is a Bid or Ask
-    // Though this is already checked in the match method
-
     @Override
-    public String toString() {
-        return "Order [id=" + id + ", price=" + price + ", quantity=" + quantity + ", type=" + type + ", status=" + status + ", strategyType=" + strategyType + "]";
+    public final String toString() {
+        return String.format(
+                "Order [id=%d, price=%d, quantity=%d, type=%s, status=%s, strategyType=%s]",
+                id, price, quantity, type, status, strategyType
+        );
     }
 }

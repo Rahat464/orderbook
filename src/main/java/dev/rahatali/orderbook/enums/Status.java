@@ -8,4 +8,12 @@ public enum Status {
     public boolean isActive() {
         return this == ACTIVE;
     }
+
+    public boolean isComplete() {
+        return this == COMPLETED;
+    }
+
+    public boolean isCancelled() {
+        return this == CANCELLED;
+    }
 }

@@ -1,17 +1,24 @@
 package dev.rahatali.orderbook;
 
-import dev.rahatali.orderbook.entities.Order;
 import dev.rahatali.orderbook.entities.OrderBook;
 import dev.rahatali.orderbook.entities.OrderFactory;
 import dev.rahatali.orderbook.enums.Strategy;
 import dev.rahatali.orderbook.enums.Type;
 
-import java.math.BigDecimal;
 import java.util.Scanner;
 
 public class Main {
+    private static final int PRICE_SCALE = 2;
+    private static final long INITIAL_PRICE = (long) (150.00 * Math.pow(10, PRICE_SCALE));
+
     private static final OrderBook orderBook = new OrderBook();
     private static final Scanner SCANNER = new Scanner(System.in);
+    private static final OrderFactory orderFactory = new OrderFactory(
+            INITIAL_PRICE,
+            0.0005,
+            0.01,
+            PRICE_SCALE
+    );
 
     public static void main(String[] args) {
         try {
@@ -53,30 +60,30 @@ public class Main {
     }
 
     private static void manual() {
-        OrderFactory orderFactory = new OrderFactory(
-                BigDecimal.valueOf(150.00),
-                BigDecimal.valueOf(0.0005),
-                BigDecimal.valueOf(0.01),
-                2
-        );
-
         out("Would you like to prefill the OrderBook (1) or create your own order (2)?");
         int input = SCANNER.nextInt();
         if (input == 1) {
+            out("Prefilling with 1,000 orders...");
             for (int i = 0; i < 1000; i++) {
-                orderBook.add(orderFactory.createOrder());
+                OrderFactory.OrderParams params = orderFactory.createOrder();
+                orderBook.add(params.id(), params.price(), params.quantity(), params.type(), params.strategy());
             }
-        } else createOrder();
+        } else {
+            createOrder();
+        }
         out(orderBook.toString());
 
+        int initialSize = orderBook.getSize(null);
         long startTime = System.nanoTime();
-        final boolean match = orderBook.match();
+        orderBook.match();
         long endTime = System.nanoTime();
+        int finalSize = orderBook.getSize(null);
 
-        out("Order matching " + (match ? "completed" : "failed"));
+        boolean matchOccurred = finalSize < initialSize;
+        out("Order matching " + (matchOccurred ? "completed" : "failed"));
         long timeTakenNs = endTime - startTime;
         double timeTakenMs = timeTakenNs / 1_000_000.0;
-        out("Time taken to match order: " + timeTakenNs + "ns (" + timeTakenMs + "ms)");
+        out("Time taken to run matching engine: " + timeTakenNs + "ns (" + timeTakenMs + "ms)");
     }
 
     private static void createOrder() {
@@ -85,75 +92,63 @@ public class Main {
         out("Enter the quantity: ");
         int quantity = SCANNER.nextInt();
         out("Enter the type (1. BID, 2. ASK): ");
-        int type = SCANNER.nextInt();
+        int typeInput = SCANNER.nextInt();
         out("Enter the strategy (1. MARKET, 2. LIMIT): ");
-        int strategy = SCANNER.nextInt();
+        int strategyInput = SCANNER.nextInt();
 
-        OrderFactory orderFactory = new OrderFactory(
-                BigDecimal.valueOf(150.00),
-                BigDecimal.valueOf(0.0005),
-                BigDecimal.valueOf(0.01),
-                2
-        );
+        long longPrice = (long) (price * Math.pow(10, PRICE_SCALE));
+        Type type = typeInput == 1 ? Type.BID : Type.ASK;
+        Strategy strategy = strategyInput == 1 ? Strategy.MARKET : Strategy.LIMIT;
 
-        Order order = orderFactory.createOrder(
-                price,
-                quantity,
-                type == 1 ? Type.BID : Type.ASK,
-                strategy == 1 ? Strategy.MARKET : Strategy.LIMIT
-        );
-        orderBook.add(order);
-        out("Order " + order.id + " created.");
+        OrderFactory.OrderParams params = orderFactory.createOrder(longPrice, quantity, type, strategy);
+        orderBook.add(params.id(), params.price(), params.quantity(), params.type(), params.strategy());
+        out("Order " + params.id() + " created.");
     }
 
     private static void auto() {
-        OrderFactory orderFactory = new OrderFactory(
-                BigDecimal.valueOf(150.00),
-                BigDecimal.valueOf(0.0005),
-                BigDecimal.valueOf(0.01),
-                2
-        );
-
         out("Enter the number of orders to be created: ");
         int numOfOrders = SCANNER.nextInt();
 
         for (int i = 0; i < numOfOrders; i++) {
-            orderBook.add(orderFactory.createOrder());
+            OrderFactory.OrderParams params = orderFactory.createOrder();
+            orderBook.add(params.id(), params.price(), params.quantity(), params.type(), params.strategy());
         }
 
-        // Match all orders
-        while (!orderBook.isEmpty(null)) {
+        out("Orders added. Matching until the book is clear...");
+        int initialSize;
+        do {
+            initialSize = orderBook.getSize(null);
             orderBook.match();
-        }
+        } while (orderBook.getSize(null) < initialSize);
+
+        out("Auto matching complete.");
     }
 
     private static void benchmark() {
-        OrderFactory orderFactory = new OrderFactory(
-                BigDecimal.valueOf(150.00),
-                BigDecimal.valueOf(0.0005),
-                BigDecimal.valueOf(0.01),
-                2
-        );
-
         long startTime;
         long endTime;
-        int ordersMatched = 0;
+        final int numOrders = 100_000;
 
         // Time taken to create 100K orders
         startTime = System.nanoTime();
-        for (int i = 0; i < 100_000; i++) {
-            orderBook.add(orderFactory.createOrder());
+        for (int i = 0; i < numOrders; i++) {
+            OrderFactory.OrderParams params = orderFactory.createOrder();
+            orderBook.add(params.id(), params.price(), params.quantity(), params.type(), params.strategy());
         }
         endTime = System.nanoTime();
-        String result = generateBenchmarkMessage(startTime, endTime, "create", 100_000);
+        String result = generateBenchmarkMessage(startTime, endTime, "create", numOrders);
 
-        // Time taken to match 10,000 orders
+        // Time taken to match all possible orders
         startTime = System.nanoTime();
-        while (ordersMatched < 10_000) {
-            if (orderBook.match()) ordersMatched++;
-        }
+        int initialSize = orderBook.getSize(null);
+        int currentSize;
+        do {
+            currentSize = orderBook.getSize(null);
+            orderBook.match();
+        } while (orderBook.getSize(null) < currentSize);
         endTime = System.nanoTime();
-        result += generateBenchmarkMessage(startTime, endTime, "match", ordersMatched);
+        int ordersProcessed = initialSize - orderBook.getSize(null);
+        result += generateBenchmarkMessage(startTime, endTime, "match", ordersProcessed);
 
         out(result);
     }
